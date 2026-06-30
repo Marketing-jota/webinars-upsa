@@ -76,6 +76,21 @@
   .task-sub input:focus { outline: none; border-bottom-color: var(--amarillo-deep); color: var(--ink); }
   .task-sub .resp { min-width: 120px; }
   .task-sub .note { min-width: 180px; flex: 1; }
+  .task-del { border: none; background: none; cursor: pointer; color: #c0bdb2; font-size: 15px; padding: 2px 6px; align-self: flex-start; border-radius: 5px; }
+  .task-del:hover { color: var(--amarillo-deep); background: var(--amarillo-soft); }
+  .add-task { border: none; background: none; cursor: pointer; font-family: inherit; color: var(--amarillo-deep); font-size: 13px; font-weight: 600; padding: 11px 18px; width: 100%; text-align: left; }
+  .add-task:hover { background: #fcfbf8; }
+  .area-veto { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 18px; border-top: 1px solid #f1efe8; background: #fcfbf8; }
+  .area-veto.on { background: var(--done-bg); border-top-color: #c9e4d4; }
+  .area-veto-btn { border: none; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 12px; padding: 7px 14px; border-radius: 7px; color: #fff; background: var(--done); }
+  .area-veto-btn:hover { filter: brightness(1.07); }
+  .area-veto-by { border: none; border-bottom: 1px solid var(--line); background: none; font-family: inherit; font-size: 12px; color: var(--ink-soft); padding: 3px 4px; min-width: 130px; }
+  .area-veto-by:focus { outline: none; border-bottom-color: var(--done); color: var(--ink); }
+  .area-veto-txt { font-size: 12.5px; font-weight: 600; color: var(--done); flex: 1; }
+  .area-veto-revoke { border: 1px solid #c9e4d4; background: #fff; cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--ink-soft); padding: 5px 11px; border-radius: 7px; }
+  .area-veto-revoke:hover { border-color: var(--done); color: var(--done); }
+  .area-vbo-badge { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: #fff; background: var(--done); padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+  .area-approved { border-color: #c9e4d4; }
 
   .sec-head { font-family: Georgia, serif; font-size: 19px; font-weight: 700; color: var(--gris-deep); margin: 36px 0 14px; display: flex; align-items: center; gap: 10px; }
   .sec-head::before { content: ''; width: 4px; height: 20px; background: var(--amarillo); border-radius: 2px; }
@@ -151,13 +166,13 @@
   function uid() { return Math.random().toString(36).slice(2, 10); }
 
   function defaultAreas() {
-    const mk = (name, color, tasks) => ({ id: uid(), name, color, tasks: tasks.map(t => ({ id: uid(), text: t, status: 'Pendiente', resp: '', note: '' })) });
+    const mk = (name, color, tasks) => ({ id: uid(), name, color, veto: { approved: false, by: '', when: '' }, tasks: tasks.map(t => ({ id: uid(), text: t, status: 'Pendiente', resp: '', note: '' })) });
     return [
-      mk('Contenido', AREA_COLORS[0], ['Definir tema y enfoque del webinar','Confirmar ponente(s) y bio','Redactar guion / estructura de la sesion','Escribir descripcion y titular','Vincular con titulacion(es) objetivo (TOFU)']),
-      mk('Creatividades', AREA_COLORS[1], ['Disenar banner principal','Plantillas para redes sociales','Cabecera y recursos para la landing','Plantilla de email','Subir creatividades al repositorio']),
+      mk('Contenido', AREA_COLORS[0], ['Definir tema y enfoque del webinar','Confirmar ponente(s) y bio','Escribir descripcion y titular']),
+      mk('Creatividades', AREA_COLORS[1], ['Plantillas para redes sociales','Cabecera y recursos para la landing','Plantilla de email','Subir creatividades al repositorio','Otras peticiones']),
       mk('Landing Page', AREA_COLORS[2], ['Montar la landing page','Redactar textos de la LP','Configurar formulario de inscripcion','Revisar en movil y enlaces','Publicar y pegar URL en repositorio']),
-      mk('Difusion', AREA_COLORS[3], ['Calendario de publicaciones','Envio de email marketing','Programar publicaciones en redes','Recordatorio a inscritos (24h antes)','Comunicacion interna UPSA']),
-      mk('Tecnica', AREA_COLORS[4], ['Configurar plataforma de streaming','Ensayo tecnico con ponente','Grabacion de la sesion','Publicar grabacion post-evento'])
+      mk('Difusion', AREA_COLORS[3], ['Envio de email marketing','Programar publicaciones en redes','Recordatorio a inscritos (24h antes)','Comunicacion interna UPSA']),
+      mk('Tecnica', AREA_COLORS[4], ['Solicitar plataforma de Blackboard','Ensayo tecnico con ponente','Grabacion de la sesion','Publicar grabacion post-evento'])
     ];
   }
   function newWebinar() {
@@ -308,14 +323,43 @@
   }
 
   function renderArea(w, area) {
-    const box = el('div', 'area');
+    if (!area.veto) area.veto = { approved: false, by: '', when: '' };
+    const box = el('div', 'area' + (area.veto.approved ? ' area-approved' : ''));
     const ah = el('div', 'area-head');
     const dot = el('span', 'area-dot'); dot.style.background = area.color;
     const name = el('div', 'area-name'); name.textContent = area.name;
     const count = el('span', 'area-count'); const adone = area.tasks.filter(t => t.status === 'Hecho').length; count.textContent = adone + '/' + area.tasks.length;
-    ah.append(dot, name, count); box.appendChild(ah);
+    ah.append(dot, name, count);
+    if (area.veto.approved) { const badge = el('span', 'area-vbo-badge'); badge.textContent = 'vBo'; ah.appendChild(badge); }
+    box.appendChild(ah);
     area.tasks.forEach(task => box.appendChild(renderTask(area, task)));
+
+    // Boton anadir elemento
+    const add = el('button', 'add-task'); add.textContent = '+ Anadir elemento';
+    add.onclick = () => { area.tasks.push({ id: uid(), text: 'Nueva tarea', status: 'Pendiente', resp: '', note: '' }); push(); render(); };
+    box.appendChild(add);
+
+    // Visto bueno por area
+    box.appendChild(renderAreaVeto(area));
     return box;
+  }
+
+  function renderAreaVeto(area) {
+    const v = area.veto;
+    const bar = el('div', 'area-veto' + (v.approved ? ' on' : ''));
+    if (!v.approved) {
+      const btn = el('button', 'area-veto-btn'); btn.textContent = 'Dar vBo a ' + area.name;
+      btn.onclick = () => { v.approved = true; v.when = new Date().toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); push(); render(); };
+      const inp = el('input', 'area-veto-by'); inp.placeholder = 'Revisado por'; inp.value = v.by; inp.oninput = () => { v.by = inp.value; push(); };
+      bar.append(btn, inp);
+    } else {
+      const txt = el('span', 'area-veto-txt');
+      txt.innerHTML = 'Aprobado' + (v.by ? ' por ' + escapeHtml(v.by) : '') + (v.when ? ' &middot; ' + escapeHtml(v.when) : '');
+      const revoke = el('button', 'area-veto-revoke'); revoke.textContent = 'Revocar';
+      revoke.onclick = () => { v.approved = false; v.when = ''; push(); render(); };
+      bar.append(txt, revoke);
+    }
+    return bar;
   }
 
   function renderTask(area, task) {
@@ -323,11 +367,17 @@
     const st = el('button', 'task-status ' + statusClass(task.status)); st.textContent = task.status;
     st.onclick = () => { task.status = nextStatus(task.status); push(); render(); }; row.appendChild(st);
     const body = el('div', 'task-body');
-    const txt = el('div', 'task-text' + (task.status === 'Hecho' ? ' is-done' : '')); txt.textContent = task.text; body.appendChild(txt);
+    const txt = el('div', 'task-text' + (task.status === 'Hecho' ? ' is-done' : '')); txt.contentEditable = true; txt.spellcheck = false; txt.textContent = task.text;
+    txt.onblur = () => { task.text = txt.textContent.trim() || 'Tarea'; push(); };
+    txt.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); txt.blur(); } };
+    body.appendChild(txt);
     const sub = el('div', 'task-sub');
     const resp = el('input', 'resp'); resp.placeholder = 'Responsable'; resp.value = task.resp; resp.oninput = () => { task.resp = resp.value; push(); };
     const note = el('input', 'note'); note.placeholder = 'Nota / observacion'; note.value = task.note; note.oninput = () => { task.note = note.value; push(); };
     sub.append(resp, note); body.appendChild(sub); row.appendChild(body);
+    const del = el('button', 'task-del'); del.innerHTML = '&times;'; del.title = 'Eliminar tarea';
+    del.onclick = () => { if (confirm('Eliminar esta tarea?')) { area.tasks = area.tasks.filter(t => t.id !== task.id); push(); render(); } };
+    row.appendChild(del);
     return row;
   }
 
